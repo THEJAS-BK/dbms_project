@@ -1,0 +1,6 @@
+{
+  "name": "EduReg System",
+  "description": "A high-performance student registration and academic management portal featuring course cataloging, enrollment tracking, and administrative insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
