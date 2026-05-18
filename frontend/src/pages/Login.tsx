@@ -31,7 +31,11 @@ export default function Login() {
         body: JSON.stringify({ username, password }),
       });
       login(data.user);
-      navigate('/');
+      if (data.user.role === 'admin') {
+        navigate('/admin/overview');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to login');
     } finally {

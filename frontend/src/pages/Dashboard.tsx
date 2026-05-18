@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   GraduationCap, 
   BookOpen as AutoStories, 
@@ -11,78 +12,92 @@ import {
   Calendar,
   Mail,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  BookOpen,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchApi } from '@/lib/api';
 
-const stats = [
-  {
-    label: 'Current Semester',
-    value: '4',
-    sublabel: 'Registered Courses',
-    icon: AutoStories,
-    color: 'text-primary',
-    bg: 'bg-primary-container/10',
-    span: 'col-span-12 md:col-span-4'
-  },
-  {
-    label: 'Onboarding Progress',
-    value: '75%',
-    sublabel: 'Profile Completion',
-    icon: ShieldCheck,
-    color: 'text-secondary',
-    bg: 'bg-secondary-container/10',
-    span: 'col-span-12 md:col-span-8',
-    progress: 75,
-    info: 'Complete your medical waiver to reach 100%.'
-  }
-];
-
-const courses = [
-  {
-    name: 'Introduction to Software Engineering',
-    instructor: 'Prof. Alan Turing',
-    code: 'CS302',
-    credits: '4.0',
-    status: 'Approved',
-    icon: Code,
-    iconColor: 'text-blue-600',
-    iconBg: 'bg-blue-100'
-  },
-  {
-    name: 'Discrete Mathematics II',
-    instructor: 'Dr. Ada Lovelace',
-    code: 'MATH205',
-    credits: '3.0',
-    status: 'Approved',
-    icon: Sigma,
-    iconColor: 'text-purple-600',
-    iconBg: 'bg-purple-100'
-  },
-  {
-    name: 'Cognitive Psychology',
-    instructor: 'Prof. William James',
-    code: 'PSY101',
-    credits: '3.0',
-    status: 'Pending',
-    icon: Brain,
-    iconColor: 'text-amber-600',
-    iconBg: 'bg-amber-100'
-  },
-  {
-    name: 'Global Economics',
-    instructor: 'Dr. Janet Yellen',
-    code: 'ECON402',
-    credits: '4.0',
-    status: 'Approved',
-    icon: Globe,
-    iconColor: 'text-rose-600',
-    iconBg: 'bg-rose-100'
-  }
-];
+interface Registration {
+  course_id: number;
+  name: string;
+  code: string;
+  credits: number;
+  registration_date: string;
+  instructor?: string;
+  status?: string;
+}
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadData = async () => {
+      try {
+        const regs = await fetchApi('/registrations/my');
+        setRegistrations(regs);
+
+        try {
+          const profile = await fetchApi(`/student-details/${user.userId}`);
+          let completion = 20; // base for just having an account
+          if (profile.full_name) completion += 20;
+          if (profile.phone) completion += 20;
+          if (profile.qualification) completion += 20;
+          if (profile.program !== 'Undeclared') completion += 20;
+          setProfileCompletion(completion);
+        } catch (e) {
+          // Profile might not exist yet
+          setProfileCompletion(10);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  const stats = [
+    {
+      label: 'Current Semester',
+      value: registrations.length.toString(),
+      sublabel: 'Registered Courses',
+      icon: AutoStories,
+      color: 'text-primary',
+      bg: 'bg-primary-container/10',
+      span: 'col-span-12 md:col-span-4'
+    },
+    {
+      label: 'Onboarding Progress',
+      value: `${profileCompletion}%`,
+      sublabel: 'Profile Completion',
+      icon: ShieldCheck,
+      color: 'text-secondary',
+      bg: 'bg-secondary-container/10',
+      span: 'col-span-12 md:col-span-8',
+      progress: profileCompletion,
+      info: profileCompletion < 100 ? 'Complete your profile to reach 100%.' : 'Your profile is fully complete!'
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10">
       {/* Welcome Section */}
@@ -96,9 +111,9 @@ export default function Dashboard() {
         </div>
         
         <div className="relative z-10 max-w-2xl">
-          <h2 className="mb-2 text-3xl font-bold md:text-4xl tracking-tight">Welcome back, John Doe</h2>
+          <h2 className="mb-2 text-3xl font-bold md:text-4xl tracking-tight">Welcome back, {user?.username}</h2>
           <p className="text-lg text-on-primary-container/90">
-            You're doing great this semester! You have 3 upcoming assignments due this week and your overall registration is nearly complete.
+            You're doing great this semester! You have registered for {registrations.length} courses and your profile is {profileCompletion}% complete.
           </p>
           <div className="mt-8 flex gap-4">
             <button className="rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-primary shadow-sm hover:shadow-md transition-all active:scale-95">
@@ -178,55 +193,61 @@ export default function Dashboard() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  {['Course Name', 'Code', 'Credits', 'Status', 'Action'].map((header) => (
-                    <th key={header} className="px-8 py-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container">
-                {courses.map((course) => (
-                  <tr key={course.code} className="transition-colors hover:bg-surface-container-low/30">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${course.iconBg}`}>
-                          <course.icon className={`h-5 w-5 ${course.iconColor}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-on-surface">{course.name}</p>
-                          <p className="text-[10px] text-on-surface-variant font-medium">{course.instructor}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-xs font-semibold text-on-surface-variant">{course.code}</td>
-                    <td className="px-8 py-5 text-xs font-semibold text-on-surface-variant">{course.credits}</td>
-                    <td className="px-8 py-5">
-                      <span className={cn(
-                        "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide",
-                        course.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                      )}>
-                        {course.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <button className="text-on-surface-variant hover:text-primary transition-colors">
-                        <MoreVertical className="h-5 w-5" />
-                      </button>
-                    </td>
+            {registrations.length === 0 ? (
+              <div className="p-8 text-center text-on-surface-variant">No recent registrations.</div>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/50">
+                    {['Course Name', 'Code', 'Credits', 'Status', 'Action'].map((header) => (
+                      <th key={header} className="px-8 py-4 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                        {header}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-surface-container">
+                  {registrations.slice(0, 5).map((course) => (
+                    <tr key={course.code} className="transition-colors hover:bg-surface-container-low/30">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100`}>
+                            <BookOpen className={`h-5 w-5 text-blue-600`} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-on-surface">{course.name}</p>
+                            <p className="text-[10px] text-on-surface-variant font-medium">{course.instructor || 'TBD'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-xs font-semibold text-on-surface-variant">{course.code}</td>
+                      <td className="px-8 py-5 text-xs font-semibold text-on-surface-variant">{course.credits}</td>
+                      <td className="px-8 py-5">
+                        <span className={cn(
+                          "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide",
+                          "bg-green-100 text-green-700"
+                        )}>
+                          {course.status || 'Enrolled'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <button className="text-on-surface-variant hover:text-primary transition-colors">
+                          <MoreVertical className="h-5 w-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-          <div className="border-t border-surface-container bg-surface-container-low/20 px-8 py-4 text-center">
-            <button className="text-xs font-bold text-on-surface-variant hover:text-primary transition-all">
-              Show More Courses
-            </button>
-          </div>
+          {registrations.length > 5 && (
+            <div className="border-t border-surface-container bg-surface-container-low/20 px-8 py-4 text-center">
+              <button className="text-xs font-bold text-on-surface-variant hover:text-primary transition-all">
+                Show More Courses
+              </button>
+            </div>
+          )}
         </motion.div>
 
         {/* Sidebar Cards */}
@@ -270,10 +291,10 @@ export default function Dashboard() {
           >
             <div className="mb-4 flex items-center gap-3">
               <AlertTriangle className="h-6 w-6 text-error fill-error/20" />
-              <h3 className="font-bold text-error tracking-tight">Critical Deadline</h3>
+              <h3 className="font-bold text-error tracking-tight">Registration Status</h3>
             </div>
             <p className="mb-6 text-sm text-on-error-container leading-relaxed">
-              The final registration window for the Fall Semester closes in <strong className="font-black">2 days</strong>. Please finalize any course changes before Friday at 5:00 PM.
+              Ensure you have registered for all required courses. Check with your advisor to confirm your schedule.
             </p>
             <a href="#" className="inline-flex items-center gap-2 text-xs font-bold text-error transition-all hover:translate-x-1 hover:underline">
               Review Registration

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Users, 
@@ -7,18 +8,26 @@ import {
   TrendingUp,
   Clock,
   ArrowUpRight,
-  MoreVertical,
   Activity,
-  UserPlus
+  UserPlus,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchApi } from '@/lib/api';
 
-const stats = [
-  { label: 'Total Students', value: '1,248', trend: '+12%', color: 'text-primary', bg: 'bg-primary/10', icon: Users },
-  { label: 'Total Courses', value: '256', trend: '+4%', color: 'text-indigo-600', bg: 'bg-indigo-100', icon: BookOpen },
-  { label: 'Total Enrollments', value: '4,892', trend: '+18%', color: 'text-blue-600', bg: 'bg-blue-100', icon: GraduationCap },
-  { label: 'Completion Rate', value: '94.2%', trend: '+2%', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle },
-];
+interface MonthlyEntry {
+  month: string;
+  month_num: number;
+  count: number;
+}
+
+interface Stats {
+  totalStudents: number;
+  totalCourses: number;
+  totalEnrollments: number;
+  completionRate: string;
+  monthlyEnrollments: MonthlyEntry[];
+}
 
 const pendingRequests = [
   { id: 1, name: 'Alice Smith', course: 'BIO-402', type: 'Course Overload', priority: 'High', date: '2h ago' },
@@ -27,6 +36,45 @@ const pendingRequests = [
 ];
 
 export default function AdminDashboard() {
+  const [statsData, setStatsData] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchApi('/admin/stats')
+      .then(data => setStatsData(data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Build a 6-month window of labels & counts, filling missing months with 0
+  const chartData = (() => {
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        month: d.toLocaleString('default', { month: 'short' }),
+        month_num: d.getMonth() + 1,
+        count: 0
+      });
+    }
+    if (statsData?.monthlyEnrollments) {
+      for (const entry of statsData.monthlyEnrollments) {
+        const match = months.find(m => m.month_num === entry.month_num);
+        if (match) match.count = entry.count;
+      }
+    }
+    const maxCount = Math.max(...months.map(m => m.count), 1);
+    return months.map(m => ({ ...m, pct: Math.round((m.count / maxCount) * 100) }));
+  })();
+
+  const stats = [
+    { label: 'Total Students', value: statsData?.totalStudents || 0, trend: '+12%', color: 'text-primary', bg: 'bg-primary/10', icon: Users },
+    { label: 'Total Courses', value: statsData?.totalCourses || 0, trend: '+4%', color: 'text-indigo-600', bg: 'bg-indigo-100', icon: BookOpen },
+    { label: 'Total Enrollments', value: statsData?.totalEnrollments || 0, trend: '+18%', color: 'text-blue-600', bg: 'bg-blue-100', icon: GraduationCap },
+    { label: 'Completion Rate', value: statsData?.completionRate || '0%', trend: '+2%', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle },
+  ];
+
   return (
     <div className="space-y-10">
       {/* Header */}
@@ -47,29 +95,35 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div className={cn("rounded-xl p-3", stat.bg)}>
-                <stat.icon className={cn("h-6 w-6", stat.color)} />
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="mb-4 flex items-start justify-between">
+                <div className={cn("rounded-xl p-3", stat.bg)}>
+                  <stat.icon className={cn("h-6 w-6", stat.color)} />
+                </div>
+                <div className="flex items-center gap-1 text-green-600">
+                  <TrendingUp className="h-3 w-3" />
+                  <span className="text-[10px] font-black">{stat.trend}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-green-600">
-                <TrendingUp className="h-3 w-3" />
-                <span className="text-[10px] font-black">{stat.trend}</span>
-              </div>
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-70">{stat.label}</p>
-            <p className="mt-1 text-3xl font-black text-on-surface tracking-tighter">{stat.value}</p>
-          </motion.div>
-        ))}
-      </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-70">{stat.label}</p>
+              <p className="mt-1 text-3xl font-black text-on-surface tracking-tighter">{stat.value}</p>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Activity Chart Placeholder */}
@@ -95,21 +149,29 @@ export default function AdminDashboard() {
           </div>
           
           <div className="flex h-64 items-end justify-between gap-2 px-2">
-            {[40, 65, 55, 90, 75, 85].map((h, i) => (
-              <div key={i} className="group relative w-full">
-                <motion.div 
+            {chartData.map((bar, i) => (
+              <div key={bar.month} className="group relative w-full flex flex-col items-center">
+                {/* Tooltip */}
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className="bg-on-surface text-surface text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap">
+                    {bar.count} registrations
+                  </span>
+                </div>
+                <motion.div
                   initial={{ height: 0 }}
-                  animate={{ height: `${h}%` }}
-                  transition={{ delay: 0.3 + i * 0.1, duration: 1 }}
+                  animate={{ height: `${Math.max(bar.pct, 4)}%` }}
+                  transition={{ delay: 0.3 + i * 0.1, duration: 0.8, ease: 'easeOut' }}
                   className={cn(
-                    "w-full rounded-t-xl transition-all group-hover:opacity-100",
-                    i === 3 ? "bg-primary" : "bg-primary/20 hover:bg-primary/40"
+                    "w-full rounded-t-xl transition-all",
+                    bar.pct === Math.max(...chartData.map(c => c.pct))
+                      ? "bg-primary"
+                      : "bg-primary/20 group-hover:bg-primary/40"
                   )}
                 />
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
-                   <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">
-                     {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][i]}
-                   </p>
+                  <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">
+                    {bar.month}
+                  </p>
                 </div>
               </div>
             ))}

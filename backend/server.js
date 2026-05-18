@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
 import registrationRoutes from './routes/registrations.js';
 import studentDetailsRoutes from './routes/studentDetails.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use('/auth', authRoutes);
 app.use('/courses', courseRoutes);
 app.use('/registrations', registrationRoutes);
 app.use('/student-details', studentDetailsRoutes);
+app.use('/admin', adminRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

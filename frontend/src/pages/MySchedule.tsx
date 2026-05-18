@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -8,47 +9,37 @@ import {
   FlaskConical as Biotech,
   Braces as DataObject,
   Globe,
-  History
+  History,
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { fetchApi } from '@/lib/api';
 
-const registrations = [
-  {
-    name: 'Advanced Molecular Biology',
-    instructor: 'Prof. Eleanor Vance',
-    code: 'BIO-402',
-    date: 'Aug 24, 2023',
-    status: 'Enrolled',
-    icon: Biotech,
-  },
-  {
-    name: 'Data Structures & Algorithms',
-    instructor: 'Dr. Marcus Thorne',
-    code: 'CS-201',
-    date: 'Aug 25, 2023',
-    status: 'Enrolled',
-    icon: DataObject,
-  },
-  {
-    name: 'Macroeconomics II',
-    instructor: 'Prof. Sarah Jenkins',
-    code: 'ECON-305',
-    date: 'Sep 02, 2023',
-    status: 'Waitlisted',
-    icon: Globe,
-  },
-  {
-    name: 'History of Modern Art',
-    instructor: 'Dr. Julianne Moore',
-    code: 'ART-110',
-    date: 'Sep 05, 2023',
-    status: 'Enrolled',
-    icon: History,
-  }
-];
+interface Registration {
+  course_id: number;
+  name: string;
+  code: string;
+  credits: number;
+  registration_date: string;
+  instructor?: string;
+  status?: string;
+}
 
 export default function MySchedule() {
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchApi('/registrations/my')
+      .then(data => setRegistrations(data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalCredits = registrations.reduce((acc, curr) => acc + (curr.credits || 0), 0);
+
   return (
     <div className="space-y-10">
       {/* Header */}
@@ -60,8 +51,8 @@ export default function MySchedule() {
       {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {[
-          { label: 'Active', value: '4 Courses', sub: '12 Total Credits', icon: Biotech, color: 'text-primary', bg: 'bg-primary/10' },
-          { label: 'Pending', value: '1 Course', sub: 'Waitlist Position: 3', icon: History, color: 'text-secondary', bg: 'bg-secondary/10' },
+          { label: 'Active', value: `${registrations.length} Courses`, sub: `${totalCredits} Total Credits`, icon: Biotech, color: 'text-primary', bg: 'bg-primary/10' },
+          { label: 'Pending', value: '0 Course', sub: 'Waitlist Position: None', icon: History, color: 'text-secondary', bg: 'bg-secondary/10' },
           { label: 'Timeline', value: 'Oct 12', sub: 'Registration Deadline', icon: Globe, color: 'text-primary', bg: 'bg-primary/10' }
         ].map((item, i) => (
           <motion.div
@@ -115,75 +106,85 @@ export default function MySchedule() {
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-surface-container-low/50">
-                {['Course Name', 'Course Code', 'Registration Date', 'Status', ''].map((h, i) => (
-                  <th key={h} className={cn(
-                    "px-8 py-5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant",
-                    i === 4 ? "text-right" : ""
-                  )}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-container">
-              {registrations.map((reg) => (
-                <tr key={reg.code} className="transition-colors hover:bg-surface-container-low/30">
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10">
-                        <reg.icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-base font-bold text-on-surface tracking-tight">{reg.name}</p>
-                        <p className="text-xs font-medium text-on-surface-variant mt-0.5">{reg.instructor}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 text-sm font-bold text-on-surface-variant font-mono">{reg.code}</td>
-                  <td className="px-8 py-6 text-sm font-semibold text-on-surface">{reg.date}</td>
-                  <td className="px-8 py-6">
-                    <span className={cn(
-                      "rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest",
-                      reg.status === 'Enrolled' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700 font-bold"
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : registrations.length === 0 ? (
+            <div className="text-center py-20 text-on-surface-variant">No registrations found.</div>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-surface-container-low/50">
+                  {['Course Name', 'Course Code', 'Registration Date', 'Status', ''].map((h, i) => (
+                    <th key={h} className={cn(
+                      "px-8 py-5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant",
+                      i === 4 ? "text-right" : ""
                     )}>
-                      {reg.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <button className="text-on-surface-variant hover:text-primary transition-colors">
-                      <MoreVertical className="h-5 w-5" />
-                    </button>
-                  </td>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-surface-container">
+                {registrations.map((reg) => (
+                  <tr key={reg.course_id} className="transition-colors hover:bg-surface-container-low/30">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10">
+                          <BookOpen className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-base font-bold text-on-surface tracking-tight">{reg.name}</p>
+                          <p className="text-xs font-medium text-on-surface-variant mt-0.5">{reg.instructor || 'TBD'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6 text-sm font-bold text-on-surface-variant font-mono">{reg.code}</td>
+                    <td className="px-8 py-6 text-sm font-semibold text-on-surface">
+                      {new Date(reg.registration_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className={cn(
+                        "rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest",
+                        "bg-green-100 text-green-700"
+                      )}>
+                        {reg.status || 'Enrolled'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <button className="text-on-surface-variant hover:text-primary transition-colors">
+                        <MoreVertical className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-surface-container bg-surface-container-low/20 px-8 py-6">
-          <p className="text-sm font-medium text-on-surface-variant">
-            Showing <span className="font-bold text-on-surface">1</span> to <span className="font-bold text-on-surface">4</span> of <span className="font-bold text-on-surface">12</span> courses
-          </p>
-          <div className="flex items-center gap-2">
-            <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-outline-variant px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-all disabled:opacity-50">
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            <div className="flex gap-1">
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-bold text-on-primary">1</button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-surface-container-high text-sm font-bold text-on-surface-variant">2</button>
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-surface-container-high text-sm font-bold text-on-surface-variant">3</button>
+        {!loading && registrations.length > 0 && (
+          <div className="flex items-center justify-between border-t border-surface-container bg-surface-container-low/20 px-8 py-6">
+            <p className="text-sm font-medium text-on-surface-variant">
+              Showing <span className="font-bold text-on-surface">1</span> to <span className="font-bold text-on-surface">{registrations.length}</span> of <span className="font-bold text-on-surface">{registrations.length}</span> courses
+            </p>
+            <div className="flex items-center gap-2">
+              <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-outline-variant px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-all disabled:opacity-50">
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <div className="flex gap-1">
+                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-bold text-on-primary">1</button>
+              </div>
+              <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-outline-variant px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-all disabled:opacity-50">
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-            <button className="flex h-10 items-center justify-center gap-2 rounded-xl border border-outline-variant px-4 text-sm font-bold text-on-surface-variant hover:bg-surface-container-high transition-all">
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
           </div>
-        </div>
+        )}
       </motion.div>
     </div>
   );

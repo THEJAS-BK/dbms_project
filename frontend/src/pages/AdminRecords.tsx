@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { 
   Download, 
   Search, 
@@ -7,20 +8,38 @@ import {
   ExternalLink,
   Filter,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { fetchApi } from '@/lib/api';
 
-const studentRecords = [
-  { id: 'STU001', name: 'John Doe', level: 'Year 2', program: 'Computer Science', gpa: '3.82', status: 'In Good Standing' },
-  { id: 'STU002', name: 'Jane Smith', level: 'Year 4', program: 'Bio-Technology', gpa: '3.95', status: 'Deans List' },
-  { id: 'STU003', name: 'Robert Wilson', level: 'Year 3', program: 'Business Admin', gpa: '2.45', status: 'Academic Warning' },
-  { id: 'STU004', name: 'Maria Garcia', level: 'Year 1', program: 'Psychology', gpa: '3.10', status: 'In Good Standing' },
-  { id: 'STU005', name: 'Alex Rivera', level: 'Year 2', program: 'Computer Science', gpa: '3.65', status: 'In Good Standing' },
-];
+interface StudentRecord {
+  student_id: number;
+  username: string;
+  full_name: string;
+  level: string;
+  program: string;
+  gpa: number;
+  status: string;
+}
 
 export default function AdminRecords() {
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchApi('/student-details')
+      .then(data => setStudents(data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Compute some basic stats
+  const avgGpa = students.length > 0 ? (students.reduce((acc, s) => acc + (Number(s.gpa) || 0), 0) / students.length).toFixed(2) : '0.00';
+  const goodStanding = students.filter(s => s.status === 'In Good Standing' || s.status === 'Deans List').length;
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -36,9 +55,9 @@ export default function AdminRecords() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Avg. Institutional GPA', value: '3.24', icon: GraduationCap, color: 'text-primary' },
-          { label: 'Degree Completions', value: '142', icon: FileText, color: 'text-green-600' },
-          { label: 'Active Transcripts', value: '1,248', icon: ClipboardCheck, color: 'text-blue-600' }
+          { label: 'Avg. Institutional GPA', value: avgGpa, icon: GraduationCap, color: 'text-primary' },
+          { label: 'Good Standing', value: goodStanding, icon: FileText, color: 'text-green-600' },
+          { label: 'Active Transcripts', value: students.length, icon: ClipboardCheck, color: 'text-blue-600' }
         ].map((stat, i) => (
           <motion.div 
             key={stat.label}
@@ -83,72 +102,83 @@ export default function AdminRecords() {
         </div>
 
         <div className="overflow-x-auto">
-           <table className="w-full text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  {['Student Profile', 'Program of Study', 'Current GPA', 'Standing', ''].map((h, i) => (
-                    <th key={h} className={cn(
-                      "px-8 py-5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant",
-                      i === 4 ? "text-right" : ""
-                    )}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container">
-                {studentRecords.map((student) => (
-                  <tr key={student.id} className="transition-colors hover:bg-surface-container-low/30">
-                    <td className="px-8 py-6">
-                       <div className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container font-black text-xs text-on-surface-variant">
-                             {student.name.split(' ').map(n=>n[0]).join('')}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-on-surface leading-tight">{student.name}</p>
-                            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1 opacity-60 tabular-nums">{student.id}</p>
-                          </div>
-                       </div>
-                    </td>
-                    <td className="px-8 py-6">
-                       <p className="text-xs font-bold text-on-surface">{student.program}</p>
-                       <p className="text-[10px] font-semibold text-on-surface-variant mt-1">{student.level}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                       <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "h-2 w-2 rounded-full",
-                            parseFloat(student.gpa) >= 3.5 ? "bg-green-500" :
-                            parseFloat(student.gpa) >= 3.0 ? "bg-primary" : "bg-error"
-                          )} />
-                          <span className="text-base font-black text-on-surface tabular-nums">{student.gpa}</span>
-                       </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                         {student.status.includes('Good') || student.status.includes('List') ? 
-                           <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : 
-                           <AlertCircle className="h-3.5 w-3.5 text-error" />
-                         }
-                         <span className={cn(
-                           "text-[9px] font-black uppercase tracking-widest leading-none",
-                           student.status.includes('Standing') ? "text-on-surface-variant" :
-                           student.status.includes('Deans') ? "text-primary" : "text-error"
-                         )}>
-                           {student.status}
-                         </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                       <button className="inline-flex items-center gap-2 rounded-lg bg-surface-container-highest px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-outline-variant transition-all">
-                          Review Transcript
-                          <ExternalLink className="h-3 w-3" />
-                       </button>
-                    </td>
+           {loading ? (
+             <div className="flex justify-center py-20">
+               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+           ) : students.length === 0 ? (
+             <div className="text-center py-20 text-on-surface-variant">No records found.</div>
+           ) : (
+             <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-surface-container-low/50">
+                    {['Student Profile', 'Program of Study', 'Current GPA', 'Standing', ''].map((h, i) => (
+                      <th key={h} className={cn(
+                        "px-8 py-5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant",
+                        i === 4 ? "text-right" : ""
+                      )}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-           </table>
+                </thead>
+                <tbody className="divide-y divide-surface-container">
+                  {students.map((student) => {
+                    const status = student.status || 'In Good Standing';
+                    return (
+                      <tr key={student.student_id} className="transition-colors hover:bg-surface-container-low/30">
+                        <td className="px-8 py-6">
+                           <div className="flex items-center gap-4">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container font-black text-xs text-on-surface-variant">
+                                 {student.full_name ? student.full_name.split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase() : student.username.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-on-surface leading-tight">{student.full_name || student.username}</p>
+                                <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1 opacity-60 tabular-nums">STU{student.student_id.toString().padStart(4, '0')}</p>
+                              </div>
+                           </div>
+                        </td>
+                        <td className="px-8 py-6">
+                           <p className="text-xs font-bold text-on-surface">{student.program || 'Undeclared'}</p>
+                           <p className="text-[10px] font-semibold text-on-surface-variant mt-1">{student.level || 'Year 1'}</p>
+                        </td>
+                        <td className="px-8 py-6">
+                           <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "h-2 w-2 rounded-full",
+                                Number(student.gpa) >= 3.5 ? "bg-green-500" :
+                                Number(student.gpa) >= 3.0 ? "bg-primary" : "bg-error"
+                              )} />
+                              <span className="text-base font-black text-on-surface tabular-nums">{Number(student.gpa || 0).toFixed(2)}</span>
+                           </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-2">
+                             {status.includes('Good') || status.includes('List') ? 
+                               <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : 
+                               <AlertCircle className="h-3.5 w-3.5 text-error" />
+                             }
+                             <span className={cn(
+                               "text-[9px] font-black uppercase tracking-widest leading-none",
+                               status.includes('Standing') ? "text-on-surface-variant" :
+                               status.includes('Deans') ? "text-primary" : "text-error"
+                             )}>
+                               {status}
+                             </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                           <button className="inline-flex items-center gap-2 rounded-lg bg-surface-container-highest px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-outline-variant transition-all">
+                              Review Transcript
+                              <ExternalLink className="h-3 w-3" />
+                           </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+             </table>
+           )}
         </div>
       </motion.div>
     </div>
