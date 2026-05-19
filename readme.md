@@ -21,6 +21,72 @@ A full-stack, data-driven course enrollment and student registration portal buil
 
 ---
 
+## 📸 Visual Showcase
+
+### 👤 Student Portal Pages
+<table width="100%">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <kbd><b>Student Dashboard</b></kbd>
+      <br/><br/>
+      <img src="images/users/dashboard.png" width="100%" alt="Student Dashboard"/>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <kbd><b>Course Catalog</b></kbd>
+      <br/><br/>
+      <img src="images/users/courseCatalog.png" width="100%" alt="Course Catalog"/>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <br/>
+      <kbd><b>Individual Course Details</b></kbd>
+      <br/><br/>
+      <img src="images/users/individualCourseDetails.png" width="100%" alt="Individual Course Details"/>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <br/>
+      <kbd><b>My Registered Courses</b></kbd>
+      <br/><br/>
+      <img src="images/users/mycourses.png" width="100%" alt="My Registered Courses"/>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <br/>
+      <kbd><b>Student Profile & Academic Performance</b></kbd>
+      <br/><br/>
+      <img src="images/users/profile.png" width="80%" alt="Student Profile"/>
+    </td>
+  </tr>
+</table>
+
+### 🔑 Administrative Portal Pages
+<table width="100%">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <kbd><b>Administrative Dashboard (Trend Chart)</b></kbd>
+      <br/><br/>
+      <img src="images/admin/dasboard.png" width="100%" alt="Administrative Dashboard"/>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <kbd><b>Course Management CRUD</b></kbd>
+      <br/><br/>
+      <img src="images/admin/manageCourses.png" width="100%" alt="Course Management"/>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <br/>
+      <kbd><b>System-Wide Student Records</b></kbd>
+      <br/><br/>
+      <img src="images/admin/studentRecord.png" width="80%" alt="Student Records"/>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## 🛠️ Technology Stack
 
 | Layer | Technologies |

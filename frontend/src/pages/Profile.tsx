@@ -116,7 +116,7 @@ export default function Profile() {
     { id: 'maths', label: 'Maths Marks', value: profile?.maths_marks || 0, tag: 'DISTINCTION', color: 'text-purple-600', bg: 'bg-purple-100', icon: Calculator },
   ];
 
-  const totalScore = (profile?.physics_marks || 0) + (profile?.chemistry_marks || 0) + (profile?.maths_marks || 0);
+  const totalScore = Number(profile?.physics_marks || 0) + Number(profile?.chemistry_marks || 0) + Number(profile?.maths_marks || 0);
 
   return (
     <div className="space-y-10">
