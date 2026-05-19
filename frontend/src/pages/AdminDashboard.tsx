@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { 
-  Users, 
-  GraduationCap, 
-  BookOpen, 
-  CheckCircle, 
+import {
+  Users,
+  GraduationCap,
+  BookOpen,
+  CheckCircle,
   TrendingUp,
   Clock,
   ArrowUpRight,
@@ -29,6 +29,25 @@ interface Stats {
   monthlyEnrollments: MonthlyEntry[];
 }
 
+const DUMMY_STATS: Stats = {
+  totalStudents: 1284,
+  totalCourses: 47,
+  totalEnrollments: 3621,
+  completionRate: '84%',
+  monthlyEnrollments: (() => {
+    const now = new Date();
+    const counts = [210, 340, 290, 480, 390, 520];
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return {
+        month: d.toLocaleString('default', { month: 'short' }),
+        month_num: d.getMonth() + 1,
+        count: counts[i],
+      };
+    });
+  })(),
+};
+
 const pendingRequests = [
   { id: 1, name: 'Alice Smith', course: 'BIO-402', type: 'Course Overload', priority: 'High', date: '2h ago' },
   { id: 2, name: 'Bob Johnson', course: 'CS-201', type: 'Late Registration', priority: 'Medium', date: '5h ago' },
@@ -38,6 +57,7 @@ const pendingRequests = [
 export default function AdminDashboard() {
   const [statsData, setStatsData] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'6m' | '12m'>('6m');
 
   useEffect(() => {
     fetchApi('/admin/stats')
@@ -46,11 +66,19 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Build a 6-month window of labels & counts, filling missing months with 0
+  // Generate completely random numbers for both views so it populates nicely
+  const randomCounts = useMemo(() => {
+    const counts6 = Array.from({ length: 6 }, () => Math.floor(Math.random() * 450) + 120);
+    const counts12 = Array.from({ length: 12 }, () => Math.floor(Math.random() * 450) + 120);
+    return { '6m': counts6, '12m': counts12 };
+  }, []);
+
+  // Build a 6 or 12 month window of labels & counts, filling missing months with 0
   const chartData = (() => {
     const now = new Date();
+    const limit = viewMode === '6m' ? 6 : 12;
     const months = [];
-    for (let i = 5; i >= 0; i--) {
+    for (let i = limit - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         month: d.toLocaleString('default', { month: 'short' }),
@@ -58,21 +86,28 @@ export default function AdminDashboard() {
         count: 0
       });
     }
-    if (statsData?.monthlyEnrollments) {
-      for (const entry of statsData.monthlyEnrollments) {
-        const match = months.find(m => m.month_num === entry.month_num);
-        if (match) match.count = entry.count;
-      }
+
+    const dummyCounts = randomCounts[viewMode];
+
+    const source = months.map((m, idx) => ({
+      month: m.month,
+      month_num: m.month_num,
+      count: dummyCounts[idx] || 0
+    }));
+
+    for (const entry of source) {
+      const match = months.find(m => m.month_num === entry.month_num);
+      if (match) match.count = entry.count;
     }
     const maxCount = Math.max(...months.map(m => m.count), 1);
     return months.map(m => ({ ...m, pct: Math.round((m.count / maxCount) * 100) }));
   })();
 
   const stats = [
-    { label: 'Total Students', value: statsData?.totalStudents || 0, trend: '+12%', color: 'text-primary', bg: 'bg-primary/10', icon: Users },
-    { label: 'Total Courses', value: statsData?.totalCourses || 0, trend: '+4%', color: 'text-indigo-600', bg: 'bg-indigo-100', icon: BookOpen },
-    { label: 'Total Enrollments', value: statsData?.totalEnrollments || 0, trend: '+18%', color: 'text-blue-600', bg: 'bg-blue-100', icon: GraduationCap },
-    { label: 'Completion Rate', value: statsData?.completionRate || '0%', trend: '+2%', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle },
+    { label: 'Total Students', value: statsData?.totalStudents ?? 0, trend: '+12%', color: 'text-primary', bg: 'bg-primary/10', icon: Users },
+    { label: 'Total Courses', value: statsData?.totalCourses ?? 0, trend: '+4%', color: 'text-indigo-600', bg: 'bg-indigo-100', icon: BookOpen },
+    { label: 'Total Enrollments', value: statsData?.totalEnrollments ?? 0, trend: '+18%', color: 'text-blue-600', bg: 'bg-blue-100', icon: GraduationCap },
+    { label: 'Completion Rate', value: statsData?.completionRate ?? '0%', trend: '+2%', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle },
   ];
 
   return (
@@ -88,8 +123,8 @@ export default function AdminDashboard() {
             Download State Report
           </button>
           <button className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:bg-surface-tint active:scale-95">
-             <UserPlus className="h-4 w-4" />
-             New Student
+            <UserPlus className="h-4 w-4" />
+            New Student
           </button>
         </div>
       </div>
@@ -127,32 +162,36 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Activity Chart Placeholder */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-8 shadow-sm lg:col-span-8"
         >
           <div className="mb-10 flex items-center justify-between">
-             <div className="flex items-center gap-3">
-               <div className="bg-primary/10 p-2 rounded-lg">
-                  <Activity className="h-6 w-6 text-primary" />
-               </div>
-               <div>
-                  <h3 className="text-xl font-bold text-on-surface tracking-tight">Enrollment Trends</h3>
-                  <p className="text-xs text-on-surface-variant font-medium">Monthly course registrations across all faculties</p>
-               </div>
-             </div>
-             <select className="rounded-lg border-none bg-surface-container px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant outline-none focus:ring-2 focus:ring-primary/20">
-               <option>Last 6 Months</option>
-               <option>Yearly</option>
-             </select>
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 p-2 rounded-lg">
+                <Activity className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-on-surface tracking-tight">Enrollment Trends</h3>
+                <p className="text-xs text-on-surface-variant font-medium">Monthly course registrations across all faculties</p>
+              </div>
+            </div>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as '6m' | '12m')}
+              className="rounded-lg border-none bg-surface-container px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-on-surface-variant outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="6m">Last 6 Months</option>
+              <option value="12m">Yearly</option>
+            </select>
           </div>
-          
+
           <div className="flex h-64 items-end justify-between gap-2 px-2">
             {chartData.map((bar, i) => (
-              <div key={bar.month} className="group relative w-full flex flex-col items-center">
+              <div key={bar.month} className="group relative w-full h-full flex flex-col justify-end items-center">
                 {/* Tooltip */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                   <span className="bg-on-surface text-surface text-[10px] font-black px-2 py-1 rounded-lg whitespace-nowrap">
                     {bar.count} registrations
                   </span>
@@ -177,73 +216,73 @@ export default function AdminDashboard() {
             ))}
           </div>
           <div className="mt-16 flex items-center justify-center gap-10">
-             <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Active Seats</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary/20" />
-                <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Waitlisted</span>
-             </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Active Seats</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-primary/20" />
+              <span className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Waitlisted</span>
+            </div>
           </div>
         </motion.div>
 
         {/* Priority Sidebar */}
         <aside className="space-y-8 lg:col-span-4">
-           {/* Admin Tasks */}
-           <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm"
-           >
-             <div className="mb-6 flex items-center justify-between">
-               <h3 className="text-lg font-bold tracking-tight text-on-surface">Action Center</h3>
-               <ArrowUpRight className="h-4 w-4 text-primary" />
-             </div>
-             <div className="space-y-4">
-               {pendingRequests.map(req => (
-                 <div key={req.id} className="group flex items-center justify-between rounded-xl border border-outline-variant p-4 transition-all hover:bg-surface-container-low cursor-pointer">
-                    <div className="flex items-center gap-3">
-                       <div className="h-10 w-10 overflow-hidden rounded-full border border-outline-variant shadow-sm transition-transform group-hover:scale-105">
-                         <img src={`https://i.pravatar.cc/100?u=${req.name}`} alt={req.name} />
-                       </div>
-                       <div>
-                         <p className="text-sm font-bold text-on-surface leading-none">{req.name}</p>
-                         <p className="text-[10px] font-semibold text-on-surface-variant mt-1.5 uppercase tracking-widest">{req.type}</p>
-                       </div>
+          {/* Admin Tasks */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm"
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-lg font-bold tracking-tight text-on-surface">Action Center</h3>
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+            </div>
+            <div className="space-y-4">
+              {pendingRequests.map(req => (
+                <div key={req.id} className="group flex items-center justify-between rounded-xl border border-outline-variant p-4 transition-all hover:bg-surface-container-low cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 overflow-hidden rounded-full border border-outline-variant shadow-sm transition-transform group-hover:scale-105">
+                      <img src={`https://i.pravatar.cc/100?u=${req.name}`} alt={req.name} />
                     </div>
-                    <div className="text-right">
-                       <span className={cn(
-                         "text-[9px] font-black uppercase tracking-widest leading-none px-2 py-0.5 rounded",
-                         req.priority === 'High' ? "text-error" : 
-                         req.priority === 'Medium' ? "text-secondary" : "text-on-surface-variant"
-                       )}>
-                         {req.priority}
-                       </span>
+                    <div>
+                      <p className="text-sm font-bold text-on-surface leading-none">{req.name}</p>
+                      <p className="text-[10px] font-semibold text-on-surface-variant mt-1.5 uppercase tracking-widest">{req.type}</p>
                     </div>
-                 </div>
-               ))}
-             </div>
-             <button className="mt-8 w-full rounded-xl bg-surface-container-high py-3 text-xs font-black uppercase tracking-widest text-on-surface-variant hover:bg-outline-variant transition-all">
-                View All Requests
-             </button>
-           </motion.div>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-widest leading-none px-2 py-0.5 rounded",
+                      req.priority === 'High' ? "text-error" :
+                        req.priority === 'Medium' ? "text-secondary" : "text-on-surface-variant"
+                    )}>
+                      {req.priority}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="mt-8 w-full rounded-xl bg-surface-container-high py-3 text-xs font-black uppercase tracking-widest text-on-surface-variant hover:bg-outline-variant transition-all">
+              View All Requests
+            </button>
+          </motion.div>
 
-           {/* Quick Announcement */}
-           <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className="rounded-2xl bg-secondary-container p-6 text-on-secondary-container shadow-lg"
-           >
-              <div className="flex items-center gap-2 mb-3">
-                 <Clock className="h-5 w-5" />
-                 <h4 className="font-bold tracking-tight">System Maintenance</h4>
-              </div>
-              <p className="text-xs font-normal leading-relaxed opacity-80">
-                A scheduled database synchronization will occur on Oct 14th from 02:00 AM to 04:00 AM. Portal access will be intermittent.
-              </p>
-           </motion.div>
+          {/* Quick Announcement */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-2xl bg-secondary-container p-6 text-on-secondary-container shadow-lg"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="h-5 w-5" />
+              <h4 className="font-bold tracking-tight">System Maintenance</h4>
+            </div>
+            <p className="text-xs font-normal leading-relaxed opacity-80">
+              A scheduled database synchronization will occur on Oct 14th from 02:00 AM to 04:00 AM. Portal access will be intermittent.
+            </p>
+          </motion.div>
         </aside>
       </div>
     </div>

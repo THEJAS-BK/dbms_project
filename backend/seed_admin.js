@@ -6,10 +6,10 @@ async function seedAdmin() {
         const username = 'admin';
         const password = 'password123';
         const role = 'admin';
-        
+
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
-        
+
         await db.query(
             'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE password_hash = ?, role = ?',
             [username, hash, role, hash, role]
