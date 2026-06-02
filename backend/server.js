@@ -10,6 +10,7 @@ import courseRoutes from './routes/courses.js';
 import registrationRoutes from './routes/registrations.js';
 import studentDetailsRoutes from './routes/studentDetails.js';
 import adminRoutes from './routes/admin.js';
+import { seedAll } from './seeder.js';
 
 dotenv.config();
 
@@ -53,6 +54,21 @@ app.use('/courses', courseRoutes);
 app.use('/registrations', registrationRoutes);
 app.use('/student-details', studentDetailsRoutes);
 app.use('/admin', adminRoutes);
+
+app.get('/temp-debug', async (req, res) => {
+    try {
+        const [users] = await db.query('SELECT id, username, role FROM users');
+        const [studentDetails] = await db.query('SELECT * FROM student_details');
+        res.json({ users, studentDetails });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/temp-seed', async (req, res) => {
+    const result = await seedAll();
+    res.json(result);
+});
 
 // Global Error Handler
 app.use((err, req, res, next) => {

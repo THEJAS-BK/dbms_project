@@ -6,12 +6,26 @@ import { body, validationResult } from 'express-validator';
 const router = express.Router();
 
 // GET /student-details - admin only
+// Uses LEFT JOIN from users so ALL student accounts are visible,
+// even those who haven't filled in their profile yet.
 router.get('/', isAuthenticated, isAdmin, async (req, res) => {
     try {
         const [details] = await db.query(`
-            SELECT sd.*, u.username 
-            FROM student_details sd
-            JOIN users u ON sd.student_id = u.id
+            SELECT 
+                u.id          AS student_id,
+                u.username,
+                u.branch,
+                sd.full_name,
+                sd.email,
+                sd.phone,
+                sd.program,
+                sd.level,
+                sd.gpa,
+                sd.status
+            FROM users u
+            LEFT JOIN student_details sd ON u.id = sd.student_id
+            WHERE u.role = 'student'
+            ORDER BY u.id ASC
         `);
         res.json(details);
     } catch (error) {
